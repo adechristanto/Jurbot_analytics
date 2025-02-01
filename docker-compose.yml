@@ -1,0 +1,23 @@
+services:
+  chat-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: adechristanto/jurbot-analytics:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    volumes:
+      - chat-db-data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3 
+
+volumes:
+  chat-db-data:
+    driver: local 
