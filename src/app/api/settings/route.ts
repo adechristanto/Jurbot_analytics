@@ -81,38 +81,43 @@ export async function POST(request: Request) {
     const settings = JSON.parse(formData.get('settings') as string);
     console.log('Received settings update:', { user: user.username, settings });
 
-    // For non-admin users, only allow theme changes
-    if (user.role !== 'admin') {
-      if (Object.keys(settings).length > 1 || (Object.keys(settings).length === 1 && !settings.theme)) {
-        console.error('Unauthorized: User attempted to modify non-theme settings', {
-          user: user.username,
-          settings
-        });
-        return NextResponse.json(
-          { error: 'Unauthorized: Normal users can only change theme' },
-          { status: 401 }
-        );
-      }
-      
-      // Update only theme
-      const currentSettings = await getSettings();
-      const result = await updateSettings({
+    // Get current settings first
+    const currentSettings = await getSettings();
+    if (!currentSettings) {
+      return NextResponse.json(
+        { error: 'Current settings not found' },
+        { status: 500 }
+      );
+    }
+
+    // Check if this is a theme-only update
+    const isThemeOnlyUpdate = Object.keys(settings).length === 1 && 'theme' in settings;
+
+    if (isThemeOnlyUpdate) {
+      // For theme-only updates, just update the theme while preserving other settings
+      const updatedSettings = {
         ...currentSettings,
         theme: settings.theme
-      });
-      const updatedSettings = await getSettings();
-      console.log('Theme updated successfully:', {
+      };
+      await updateSettings(updatedSettings);
+      const newSettings = await getSettings();
+      return NextResponse.json(newSettings);
+    }
+
+    // For non-theme updates, check if user is admin
+    if (user.role !== 'admin') {
+      console.error('Unauthorized: User attempted to modify non-theme settings', {
         user: user.username,
-        theme: settings.theme
+        settings
       });
-      return NextResponse.json(updatedSettings);
+      return NextResponse.json(
+        { error: 'Unauthorized: Normal users can only change theme' },
+        { status: 401 }
+      );
     }
 
     // Admin user - proceed with full settings update
     if (logo) {
-      // Get current settings to find old logo URL
-      const currentSettings = await getSettings();
-      
       // Delete old logo if it exists
       if (currentSettings?.logo_url) {
         await deleteOldLogo(currentSettings.logo_url);
@@ -129,9 +134,15 @@ export async function POST(request: Request) {
       settings.logo_url = `/uploads/${filename}`;
     }
 
-    const result = await updateSettings(settings);
-    const updatedSettings = await getSettings();
-    return NextResponse.json(updatedSettings);
+    // For full updates, merge with current settings to ensure all required fields are present
+    const updatedSettings = {
+      ...currentSettings,
+      ...settings
+    };
+
+    await updateSettings(updatedSettings);
+    const newSettings = await getSettings();
+    return NextResponse.json(newSettings);
   } catch (error) {
     console.error('Update settings error:', error);
     return NextResponse.json(

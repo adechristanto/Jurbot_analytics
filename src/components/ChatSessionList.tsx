@@ -80,8 +80,8 @@ export default function ChatSessionList({ sessions, selectedSessionId, onSession
   const handleThemeChange = async (theme: string) => {
     try {
       setError(null); // Clear any previous errors
-      // Only send the theme property for non-admin users
-      await updateSettings({ theme: theme });
+      // Send only the theme property for theme updates
+      await updateSettings({ theme });
     } catch (error) {
       console.error('Failed to update theme:', error);
       setError(error instanceof Error ? error.message : 'Failed to update theme');
@@ -195,7 +195,8 @@ export default function ChatSessionList({ sessions, selectedSessionId, onSession
       {/* Bottom Controls */}
       <div className="border-t border-base-300 p-4 flex justify-between items-center bg-base-200">
         <div className="flex gap-2">
-          {user.role === 'admin' ? (
+          {/* Settings button - Admin only */}
+          {user.role === 'admin' && (
             <Link href="/settings" passHref>
               <button
                 className="btn btn-ghost btn-circle btn-sm"
@@ -204,31 +205,34 @@ export default function ChatSessionList({ sessions, selectedSessionId, onSession
                 <Cog6ToothIcon className="w-5 h-5" />
               </button>
             </Link>
-          ) : (
-            <div className="dropdown dropdown-top">
-              <button
-                className="btn btn-ghost btn-circle btn-sm"
-                aria-label="Change theme"
-              >
-                <SunIcon className="w-5 h-5" />
-              </button>
-              <ul className="dropdown-content menu menu-sm bg-base-200 w-52 rounded-box p-2 shadow-lg">
-                <li className="menu-title">
-                  <span>Select Theme</span>
-                </li>
-                {availableThemes.map((theme) => (
-                  <li key={theme}>
-                    <button
-                      onClick={() => handleThemeChange(theme)}
-                      className={settings.theme === theme ? 'active' : ''}
-                    >
-                      {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
           )}
+          
+          {/* Theme selector - Available for all users */}
+          <div className="dropdown dropdown-top">
+            <button
+              className="btn btn-ghost btn-circle btn-sm"
+              aria-label="Change theme"
+            >
+              <SunIcon className="w-5 h-5" />
+            </button>
+            <ul className="dropdown-content menu menu-sm bg-base-200 w-52 rounded-box p-2 shadow-lg">
+              <li className="menu-title">
+                <span>Select Theme</span>
+              </li>
+              {availableThemes.map((theme) => (
+                <li key={theme}>
+                  <button
+                    onClick={() => handleThemeChange(theme)}
+                    className={settings.theme === theme ? 'active' : ''}
+                  >
+                    {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* User menu */}
           <div className="dropdown dropdown-top">
             <button
               className="btn btn-ghost btn-circle btn-sm"
