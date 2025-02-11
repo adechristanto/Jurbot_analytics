@@ -85,18 +85,29 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         formData.append('logo', logoFile);
       }
       
-      const updatedSettings = { ...settings, ...newSettings };
-      formData.append('settings', JSON.stringify(updatedSettings));
+      // If only updating theme, don't merge with existing settings
+      const formSettings = Object.keys(newSettings).length === 1 && 'theme' in newSettings
+        ? newSettings
+        : { ...settings, ...newSettings };
+      
+      formData.append('settings', JSON.stringify(formSettings));
 
       const response = await fetch('/api/settings', {
         method: 'POST',
         body: formData,
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update settings');
+        const errorData = await response.json();
+        console.error('Settings update failed:', errorData);
+        throw new Error(errorData.error || 'Failed to update settings');
       }
 
+      const updatedSettings = await response.json();
       setSettings(updatedSettings);
     } catch (error) {
       console.error('Failed to update settings:', error);

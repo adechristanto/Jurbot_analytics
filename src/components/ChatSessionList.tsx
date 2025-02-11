@@ -3,7 +3,7 @@ import { ChatSession } from '@/types/chat';
 import moment from 'moment';
 import { ArrowUpIcon, ArrowDownIcon, Cog6ToothIcon, UserCircleIcon, ChartBarIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
-import { useSettings } from '@/contexts/SettingsContext';
+import { useSettings, availableThemes } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import SidebarHeader from './SidebarHeader';
 import SessionFilter from './SessionFilter';
@@ -21,10 +21,11 @@ type SortOrder = 'asc' | 'desc';
 export default function ChatSessionList({ sessions, selectedSessionId, onSessionSelect }: Props) {
   const router = useRouter();
   const { user, logout } = useAuth();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' });
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const filteredAndSortedSessions = useMemo(() => {
     if (!sessions) return {};
@@ -76,6 +77,19 @@ export default function ChatSessionList({ sessions, selectedSessionId, onSession
     router.push('/analytics');
   };
 
+  const handleThemeChange = async (theme: string) => {
+    try {
+      setError(null); // Clear any previous errors
+      // Only send the theme property for non-admin users
+      await updateSettings({ theme: theme });
+    } catch (error) {
+      console.error('Failed to update theme:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update theme');
+      // Auto-clear error after 3 seconds
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
   if (!user) {
     return (
       <div className="bg-base-200 w-80 h-screen flex items-center justify-center">
@@ -87,6 +101,14 @@ export default function ChatSessionList({ sessions, selectedSessionId, onSession
   return (
     <div className="bg-base-200 w-80 h-screen overflow-hidden flex flex-col">
       <SidebarHeader />
+      
+      {error && (
+        <div className="p-4">
+          <div className="alert alert-error text-sm">
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
       
       {/* Analytics Button - Only show for admin */}
       {user.role === 'admin' && (
@@ -183,13 +205,29 @@ export default function ChatSessionList({ sessions, selectedSessionId, onSession
               </button>
             </Link>
           ) : (
-            <button
-              onClick={() => router.push('/theme')}
-              className="btn btn-ghost btn-circle btn-sm"
-              aria-label="Change theme"
-            >
-              <SunIcon className="w-5 h-5" />
-            </button>
+            <div className="dropdown dropdown-top">
+              <button
+                className="btn btn-ghost btn-circle btn-sm"
+                aria-label="Change theme"
+              >
+                <SunIcon className="w-5 h-5" />
+              </button>
+              <ul className="dropdown-content menu menu-sm bg-base-200 w-52 rounded-box p-2 shadow-lg">
+                <li className="menu-title">
+                  <span>Select Theme</span>
+                </li>
+                {availableThemes.map((theme) => (
+                  <li key={theme}>
+                    <button
+                      onClick={() => handleThemeChange(theme)}
+                      className={settings.theme === theme ? 'active' : ''}
+                    >
+                      {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           <div className="dropdown dropdown-top">
             <button
